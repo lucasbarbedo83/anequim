@@ -57,6 +57,17 @@ class QCConfig:
     cv_reduction:
         How per-band CV values are reduced to a single pass/fail check:
         "any", "mean", or "median" across bands.
+    min_signal_for_cv:
+        If given, bands whose |mean valid-pixel value| falls below this
+        threshold are excluded from the coefficient-of-variation
+        homogeneity check (though still reported normally in the output
+        spectrum/std). This guards against near-zero-signal bands (e.g.
+        the far red/NIR edge of an Rrs spectrum, or a deep absorption
+        feature) producing spuriously huge CV values simply because they
+        divide by a near-zero mean — which would otherwise dominate
+        "mean"/"median" reductions across bands and mark an otherwise
+        homogeneous ROI as unreliable. Leave ``None`` (the default) to
+        include every band in the CV check, matching prior behavior.
     center_statistic:
         "mean" or "median" — how the representative spectrum for an ROI
         is computed from its valid pixels.
@@ -72,6 +83,7 @@ class QCConfig:
     min_valid_fraction: float = 0.5
     max_cv: float = 0.15
     cv_reduction: str = "mean"
+    min_signal_for_cv: Optional[float] = None
     center_statistic: str = "mean"
     exclude_outliers: bool = False
     outlier_n_std: float = 1.5
@@ -83,6 +95,8 @@ class QCConfig:
             raise ValueError("max_cv must be non-negative")
         if self.cv_reduction not in ("any", "mean", "median"):
             raise ValueError("cv_reduction must be 'any', 'mean', or 'median'")
+        if self.min_signal_for_cv is not None and self.min_signal_for_cv < 0:
+            raise ValueError("min_signal_for_cv must be non-negative")
         if self.center_statistic not in ("mean", "median"):
             raise ValueError("center_statistic must be 'mean' or 'median'")
         if self.outlier_n_std <= 0:

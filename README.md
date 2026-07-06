@@ -57,15 +57,17 @@ print(cube.spectrum_dataframe())
 | `roi` — polygon | Stub (`NotImplementedError`) |
 | `geometry` (haversine distance, nearest-pixel search) | **Working** |
 | `statistics` (mean, median, std, percentile, covariance, correlation) | **Working** |
-| `download` | Stub — this release reads local files only |
+| `download` — PACE OCI via NASA Earthdata (`earthaccess`) | **Working** (`pip install anequim[download]`) |
+| `download` — Sentinel-3 OLCI via Copernicus Marine | Stub — blocked on an OLCI reader existing |
 | `harmonization` (wavelength interpolation, SRF convolution) | Stub, opt-in by design |
 | `algorithms` (QAA, GIOP, GSM) | Stub — future bio-optical inversion |
 | `plot` | `plot_spectrum` working; comparison/map plots stubbed |
 
-Anequim reads **local files only** in this release — there is no bundled
-downloader. Use `earthaccess` (NASA OB.DAAC) or the Copernicus Marine
-Toolbox to fetch granules yourself, then hand their paths to
-`Anequim(files=...)`.
+Anequim can now find and download PACE OCI granules for you
+(`Anequim.retrieve_online(...)`), or you can still point it at files
+you already have (`Anequim.retrieve(files=..., ...)`). For any other
+sensor, use `earthaccess`/the Copernicus Marine Toolbox yourself and
+hand the resulting paths to `Anequim(files=...)`.
 
 ## Match-up methodology
 
@@ -98,7 +100,29 @@ pip install -e ".[all]"   # editable install with plotting + xarray + test extra
 
 Core runtime dependencies: `numpy`, `netCDF4`, `pandas`.
 
-## Quick start (CLI)
+## Quick start (download + retrieve in one call)
+
+Requires `pip install anequim[download]` and a free NASA Earthdata
+Login account (https://urs.earthdata.nasa.gov/):
+
+```python
+from anequim import Anequim
+from anequim.download import login
+
+login(strategy="netrc")  # or strategy="interactive", persist=True the first time
+
+cube = Anequim.retrieve_online(
+    longitude=-70.5, latitude=41.3, time="2024-06-15T15:00:00Z", sensor="OCI",
+)
+print(cube.spectrum_dataframe())
+```
+
+This searches NASA CMR for PACE OCI L2 AOP granules covering your point
+and time window, downloads any matches to `~/.anequim/cache` (or
+`cache_dir=` of your choosing), and runs the same retrieval pipeline as
+`Anequim.retrieve(files=..., ...)`.
+
+## Quick start (CLI, local files)
 
 ```bash
 anequim --files data/*.nc --sensor OCI --lon -70.5 --lat 41.3 \

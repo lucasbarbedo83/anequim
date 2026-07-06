@@ -1,25 +1,15 @@
-"""Granule discovery/download — planned, not yet implemented.
+"""Granule discovery/download.
 
-Anequim v0.1 reads local files only, by design choice for this release
-(see README). This module exists so the intended public API
-(``anequim.download.fetch_granules(...)``) is stable to code against
-ahead of time.
+NASA Earthdata / OB.DAAC (PACE OCI) is implemented via ``earthaccess``
+— see :mod:`anequim.download.earthdata`. Copernicus Marine (Sentinel-3
+OLCI) remains a stub, blocked on an OLCI reader existing — see
+:mod:`anequim.download.copernicus`.
 
-Planned design
---------------
-- Wrap ``earthaccess`` for NASA OB.DAAC holdings (PACE, MODIS, VIIRS):
-  search by short_name/collection, bounding box, and time range, then
-  download matching granules to a local cache directory.
-- Wrap the Copernicus Marine Toolbox (``copernicusmarine``) for
-  Sentinel-3 OLCI products.
-- A common ``fetch_granules(sensor, longitude, latitude, target_time,
-  time_window_hours, cache_dir)`` function that returns local file paths
-  ready to be handed to :func:`anequim.core.anequim.Anequim.get_rrs` via
-  its ``files=`` argument — keeping the network/credentials concern
-  fully separate from the retrieval and QC logic.
-- Both integrations require the user's own credentials (NASA Earthdata
-  login / Copernicus Marine account) and network access, neither of
-  which this module will assume are available.
+:func:`fetch_granules` is the single entry point that dispatches to the
+right backend by sensor name, keeping the network/credentials concern
+fully separate from retrieval and QC logic. Its return value (a list of
+local file paths) is exactly what :class:`anequim.core.anequim.Anequim`
+expects for its ``files=`` argument.
 """
 
 from __future__ import annotations
@@ -28,6 +18,11 @@ from typing import List, Optional
 
 from ..core.config import TimeLike
 from ..core.exceptions import DownloadNotAvailableError
+from .earthdata import login, fetch_pace_oci_granules
+from .copernicus import fetch_olci_granules
+
+_PACE_OCI_ALIASES = {"oci", "pace", "pace-oci", "pace_oci"}
+_OLCI_ALIASES = {"olci", "sentinel3-olci", "sentinel-3"}
 
 
 def fetch_granules(
@@ -37,21 +32,36 @@ def fetch_granules(
     target_time: TimeLike,
     time_window_hours: float = 3.0,
     cache_dir: Optional[str] = None,
+    **kwargs,
 ) -> List[str]:
-    """Not yet implemented. Intended to search and download granules
-    covering (longitude, latitude, target_time +/- time_window_hours)
-    for the given sensor, returning local file paths.
+    """Search and download granules for ``sensor`` covering (longitude,
+    latitude) within ``+/- time_window_hours`` of ``target_time``.
+
+    Dispatches to :func:`anequim.download.earthdata.fetch_pace_oci_granules`
+    for ``sensor="OCI"`` (the only backend implemented today).
+    Additional ``**kwargs`` are passed through to that backend (e.g.
+    ``near_real_time=True``, ``padding_deg=``, ``count=``).
 
     Raises
     ------
     DownloadNotAvailableError
-        Always, in this release. Use your own download workflow (e.g.
-        ``earthaccess`` or the Copernicus Marine Toolbox) to obtain
-        granules, then pass their paths to
-        ``Anequim.get_rrs(..., files=[...])``.
+        For any sensor other than PACE OCI, since no other download
+        backend is implemented yet.
     """
+    key = sensor.strip().lower()
+    if key in _PACE_OCI_ALIASES:
+        return fetch_pace_oci_granules(
+            longitude, latitude, target_time, time_window_hours, cache_dir, **kwargs
+        )
+    if key in _OLCI_ALIASES:
+        return fetch_olci_granules(
+            longitude, latitude, target_time, time_window_hours, cache_dir, **kwargs
+        )
     raise DownloadNotAvailableError(
-        "anequim.download is not yet implemented in this release. Download granules "
-        "yourself (e.g. via earthaccess for NASA OB.DAAC, or the Copernicus Marine "
-        "Toolbox for Sentinel-3 OLCI) and pass local file paths to Anequim.get_rrs()."
+        f"Download is not yet implemented for sensor '{sensor}'. Only PACE OCI "
+        "('OCI') is supported today; download other sensors' granules yourself "
+        "for now and pass local file paths to Anequim.get_rrs()."
     )
+
+
+__all__ = ["login", "fetch_pace_oci_granules", "fetch_olci_granules", "fetch_granules"]

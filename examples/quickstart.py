@@ -31,7 +31,14 @@ def main() -> None:
             sensor="OCI",
             time_window_hours=3.0,
             box_size=5,
-            qc=QCConfig(min_valid_fraction=0.5, max_cv=0.25),
+            qc=QCConfig(
+                min_valid_fraction=0.5,
+                max_cv=0.25,
+                # Exclude near-zero-signal bands (e.g. the far red/NIR edge)
+                # from the CV homogeneity check, since std/mean blows up
+                # there even for an otherwise spatially uniform ROI.
+                min_signal_for_cv=0.0005,
+            ),
         )
 
         print(cube)
