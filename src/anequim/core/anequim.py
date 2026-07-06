@@ -264,3 +264,59 @@ class Anequim:
         ``get_rrs`` once.
         """
         return cls(files=files, sensor=sensor).get_rrs(longitude, latitude, time, sensor=sensor, **kwargs)
+
+    @classmethod
+    def retrieve_online(
+        cls,
+        longitude: float,
+        latitude: float,
+        time: TimeLike,
+        sensor: str = "OCI",
+        time_window_hours: float = 3.0,
+        cache_dir: Optional[str] = None,
+        download_kwargs: Optional[dict] = None,
+        **kwargs,
+    ) -> Union[SpectralCube, List[SpectralCube]]:
+        """Search NASA Earthdata for granules covering (longitude,
+        latitude, time), download them, and retrieve Rrs — all in one
+        call. Requires the optional ``earthaccess`` dependency and prior
+        Earthdata Login authentication; see
+        :func:`anequim.download.earthdata.login`.
+
+        This is the only sensor/backend combination implemented today
+        (PACE OCI via NASA Earthdata); see :mod:`anequim.download` for
+        what's planned next.
+
+        Parameters
+        ----------
+        download_kwargs:
+            Extra keyword arguments forwarded to
+            :func:`anequim.download.fetch_granules` (e.g.
+            ``{"near_real_time": True, "padding_deg": 0.25}``).
+        **kwargs:
+            Forwarded to :meth:`get_rrs` (e.g. ``box_size``, ``qc``).
+
+        Raises
+        ------
+        OutsideSpatialDomainError
+            If the download search returns zero granules.
+        """
+        from ..download import fetch_granules
+
+        files = fetch_granules(
+            sensor=sensor,
+            longitude=longitude,
+            latitude=latitude,
+            target_time=time,
+            time_window_hours=time_window_hours,
+            cache_dir=cache_dir,
+            **(download_kwargs or {}),
+        )
+        if not files:
+            raise OutsideSpatialDomainError(
+                f"No {sensor} granules found covering ({longitude}, {latitude}) within "
+                f"+/-{time_window_hours}h of {parse_time(time).isoformat()}"
+            )
+        return cls(files=files, sensor=sensor).get_rrs(
+            longitude, latitude, time, sensor=sensor, time_window_hours=time_window_hours, **kwargs
+        )

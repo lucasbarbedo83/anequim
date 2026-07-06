@@ -175,7 +175,17 @@ def evaluate_roi(
         band_median = np.nanmedian(used_values, axis=0)
         cv_per_band = np.where(band_mean != 0, band_std / np.abs(band_mean), np.nan)
 
-    cv_reduced = _reduce_cv(cv_per_band, qc.cv_reduction)
+    # cv_per_band (reported to the caller) always reflects every band's
+    # actual CV. cv_for_reduction is what actually decides homogeneity,
+    # and optionally excludes bands whose signal is too close to zero
+    # for a relative (std/mean) metric to be meaningful.
+    if qc.min_signal_for_cv is not None:
+        low_signal = np.abs(band_mean) < qc.min_signal_for_cv
+        cv_for_reduction = np.where(low_signal, np.nan, cv_per_band)
+    else:
+        cv_for_reduction = cv_per_band
+
+    cv_reduced = _reduce_cv(cv_for_reduction, qc.cv_reduction)
     homogeneous = np.isfinite(cv_reduced) and cv_reduced <= qc.max_cv
 
     spectrum = band_mean if qc.center_statistic == "mean" else band_median

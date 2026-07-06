@@ -79,6 +79,26 @@ def test_evaluate_roi_detects_heterogeneity():
     assert not result.homogeneous
 
 
+def test_evaluate_roi_min_signal_for_cv_excludes_low_signal_bands():
+    rng = np.random.default_rng(0)
+    n_pixels = 23
+    good_bands = 0.006 + 0.0002 * rng.normal(size=(n_pixels, 3))
+    bad_band = 0.00002 + 0.0002 * rng.normal(size=(n_pixels, 1))  # near-zero mean -> huge CV
+    values = np.hstack([good_bands, bad_band])
+    valid = np.ones(n_pixels, dtype=bool)
+
+    no_filter = evaluate_roi(values, valid, QCConfig(max_cv=0.15, cv_reduction="mean"))
+    with_filter = evaluate_roi(
+        values, valid, QCConfig(max_cv=0.15, cv_reduction="mean", min_signal_for_cv=0.0005)
+    )
+
+    # Per-band CV values themselves are unaffected...
+    np.testing.assert_allclose(no_filter.cv_per_band, with_filter.cv_per_band)
+    # ...but the low-signal band should no longer wreck the homogeneity decision.
+    assert not no_filter.homogeneous
+    assert with_filter.homogeneous
+
+
 def test_evaluate_roi_outlier_trimming_changes_result():
     values = np.full((10, 1), 0.02)
     values[0, 0] = 5.0  # extreme outlier
