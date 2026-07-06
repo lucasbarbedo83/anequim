@@ -1,8 +1,41 @@
 [build-system]
-requires=["setuptools>=68","wheel"]
-build-backend="setuptools.build_meta"
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
-name="anequim"
-version="0.1.0.dev0"
-requires-python=">=3.11"
+name = "anequim"
+version = "0.1.0"
+description = "Sensor-independent retrieval of ocean-color remote sensing reflectance (Rrs) and atmospheric products. Catching the ocean spectrum."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Anequim Contributors" }]
+keywords = [
+    "ocean color", "remote sensing reflectance", "Rrs", "PACE", "OCI",
+    "OLCI", "MODIS", "VIIRS", "satellite validation", "match-up",
+    "bio-optical", "spectral cube",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+]
+dependencies = [
+    "numpy>=1.23",
+    "netCDF4>=1.6",
+    "pandas>=1.5",
+]
+
+[project.optional-dependencies]
+xarray = ["xarray>=2023.1"]
+plot = ["matplotlib>=3.6"]
+test = ["pytest>=7.0"]
+all = ["xarray>=2023.1", "matplotlib>=3.6", "pytest>=7.0"]
+
+[project.scripts]
+anequim = "anequim.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
