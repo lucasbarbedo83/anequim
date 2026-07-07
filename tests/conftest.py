@@ -10,6 +10,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "examples"))
 
 from make_synthetic_pace_file import make_synthetic_pace_oci_file  # noqa: E402
+from make_synthetic_olci_directory import make_synthetic_olci_wfr_directory  # noqa: E402
 
 CENTER_LON = -70.5
 CENTER_LAT = 41.3
@@ -21,5 +22,15 @@ def synthetic_pace_file(tmp_path):
     path = str(tmp_path / "PACE_OCI.20240615T144200.L2.OC_AOP.nc")
     make_synthetic_pace_oci_file(
         path, center_lon=CENTER_LON, center_lat=CENTER_LAT, n_lines=20, n_pixels=20, n_bands=12
+    )
+    return path
+
+
+@pytest.fixture()
+def synthetic_olci_directory(tmp_path):
+    """Path to a freshly-generated synthetic OLCI L2 WFR SAFE directory."""
+    path = str(tmp_path / "S3A_OL_2_WFR____20240615T144200_test.SEN3")
+    make_synthetic_olci_wfr_directory(
+        path, center_lon=CENTER_LON, center_lat=CENTER_LAT, n_rows=20, n_cols=20
     )
     return path

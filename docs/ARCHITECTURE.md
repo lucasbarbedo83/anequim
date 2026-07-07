@@ -6,7 +6,7 @@ anequim/
     readers/          one class per sensor's file format; PACE OCI implemented, others stubbed
     download/         planned network/download layer (stub in this release)
     roi/              region-of-interest selectors (pixel, rectangular, circular, bbox, polygon)
-    geometry/         great-circle distance, nearest-pixel search on curvilinear grids
+    geometry/         great-circle distance, nearest-pixel search on curvilinear grids, pixel-size/ROI-footprint estimation
     statistics/       spectral statistics computed over a SpectralCube
     algorithms/       planned bio-optical inversion models (QAA, GIOP, GSM) — stubs
     harmonization/    opt-in wavelength interpolation / SRF convolution — stubs
@@ -80,9 +80,18 @@ Adding a new sensor means writing exactly one new `SensorReader`
 subclass that implements `get_navigation`, `get_wavelengths`,
 `get_rrs_cube`, `get_quality_flags`, `get_time_coverage`, and (optionally)
 `get_scan_line_times`, `get_atmospheric_products`, `get_flag_name_to_bit`,
-`get_platform_name`, `get_processing_version` — then registering it in
-`readers/registry.py`. Nothing in `core`, `roi`, `statistics`, or `plot`
-needs to change.
+`get_default_excluded_flags`, `get_platform_name`, `get_processing_version`
+— then registering it in `readers/registry.py`. Nothing in `core`, `roi`,
+`statistics`, or `plot` needs to change.
+
+Sensors whose granules are a single file (PACE OCI) vs. a directory of
+many files (Sentinel-3 OLCI's SAFE format) are both supported: a reader
+just needs to accept whichever `path` its `matches()` claims. The one
+shared piece of infrastructure this required was teaching
+`utils.file_discovery.resolve_files` to recognize a directory containing
+an `xfdumanifest.xml` marker as *one* granule rather than a folder of
+files — a generic-enough convention (the ESA SAFE format marker) that it
+doesn't need to know anything sensor-specific.
 
 ## Why the stub modules are structured the way they are
 
