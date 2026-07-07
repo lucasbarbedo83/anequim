@@ -107,6 +107,19 @@ class SpectralCube:
     def spectrum_std(self) -> np.ndarray:
         return self.qc.spectrum_std
 
+    @property
+    def pixel_size_km(self) -> Optional[Dict[str, float]]:
+        """Actual ground pixel size measured from this granule's own
+        geolocation grid at the matched location (see
+        :mod:`anequim.geometry.pixel_size`) — ``None`` if unavailable."""
+        return self.provenance.pixel_size_km
+
+    @property
+    def roi_footprint_km(self) -> Optional[Dict[str, float]]:
+        """Overall footprint of the selected ROI, measured the same way
+        — ``None`` if unavailable."""
+        return self.provenance.roi_footprint_km
+
     def is_reliable(self) -> bool:
         """True if the ROI passed the minimum valid-fraction requirement
         AND was judged spatially homogeneous (see QCConfig.max_cv)."""
@@ -157,6 +170,8 @@ class SpectralCube:
         out["target_longitude"] = self.provenance.target_longitude
         out["target_latitude"] = self.provenance.target_latitude
         out["roi_description"] = self.provenance.roi_description
+        out["pixel_size_km"] = self.provenance.pixel_size_km
+        out["roi_footprint_km"] = self.provenance.roi_footprint_km
         out["reliable"] = self.is_reliable()
         return out
 

@@ -78,6 +78,11 @@ class PaceOciL2Reader(SensorReader):
     """Reader for PACE OCI Level-2 OC_AOP granules."""
 
     sensor_name = "PACE-OCI"
+    #: NASA cites "1 km spatial resolution at nadir"; more precise
+    #: technical-paper figures range 1.05-1.2 km depending on source.
+    #: Prefer the geometry-derived, per-match-up value in
+    #: SpectralCube.pixel_size_km over this constant.
+    nominal_pixel_size_m = 1000.0
 
     def __init__(self, path: str):
         super().__init__(path)

@@ -48,6 +48,23 @@ class Provenance:
     qc_summary:
         Dict summarizing the QC decision (n_valid, n_total, valid_fraction,
         cv, homogeneous, flags_excluded, center_statistic).
+    pixel_size_km:
+        Dict describing the actual ground pixel size measured directly
+        from this granule's own geolocation grid at the matched location
+        (``along_track_km``, ``cross_track_km``, ``mean_km``,
+        ``area_km2``), or ``None`` if it could not be estimated (e.g.
+        grid too small). See :mod:`anequim.geometry.pixel_size` — this
+        is a real, measured value, not a sensor-nominal constant, since
+        actual pixel size varies substantially off-nadir.
+    roi_footprint_km:
+        Dict describing the overall footprint of the selected ROI
+        (``n_rows``, ``n_cols``, ``along_track_km``, ``cross_track_km``,
+        ``diagonal_km``), or ``None`` if unavailable.
+    nominal_pixel_size_m:
+        The sensor's documented nadir pixel size in meters (e.g. 300 for
+        OLCI, ~1000 for PACE OCI), for reference/comparison against the
+        measured ``pixel_size_km`` above. ``None`` if not provided by
+        the reader.
     software_environment:
         Python / OS version strings, for debugging reproducibility issues.
     extra:
@@ -64,6 +81,9 @@ class Provenance:
     qc_summary: Dict[str, Any]
     platform_name: Optional[str] = None
     processing_version: Optional[str] = None
+    pixel_size_km: Optional[Dict[str, float]] = None
+    roi_footprint_km: Optional[Dict[str, float]] = None
+    nominal_pixel_size_m: Optional[float] = None
     anequim_version: str = dataclasses.field(default_factory=lambda: __version__)
     request_time: str = dataclasses.field(
         default_factory=lambda: _dt.datetime.now(tz=_dt.timezone.utc).isoformat()

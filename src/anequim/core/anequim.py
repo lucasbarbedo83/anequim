@@ -19,6 +19,7 @@ from .config import QCConfig, RetrievalConfig, TimeLike, parse_time
 from .exceptions import OutsideSpatialDomainError, OutsideTimeWindowError
 from .provenance import Provenance
 from .spectral_cube import SpectralCube
+from ..geometry.pixel_size import estimate_pixel_size_km, estimate_roi_footprint_km
 from ..readers.registry import open_reader
 from ..roi.base import ROI
 from ..roi.rectangular import RectangularROI
@@ -188,12 +189,25 @@ class Anequim:
             pixel_flags = quality_flags[mask2d]
 
             name_to_bit = r.get_flag_name_to_bit() or flags_module.OBPG_NAME_TO_BIT
-            exclusion_names = config.qc.flag_names or flags_module.DEFAULT_EXCLUDED_FLAGS
+            exclusion_names = (
+                config.qc.flag_names
+                or r.get_default_excluded_flags()
+                or flags_module.DEFAULT_EXCLUDED_FLAGS
+            )
             exclusion_bitmask = flags_module.build_exclusion_bitmask(exclusion_names, name_to_bit)
             flagged = flags_module.flagged_mask(pixel_flags, exclusion_bitmask)
             valid_mask = ~flagged
 
             qc_result = qc_module.evaluate_roi(pixel_rrs, valid_mask, config.qc)
+
+            pixel_size = None
+            if selection.center_row is not None and selection.center_col is not None:
+                ps = estimate_pixel_size_km(
+                    lon_grid, lat_grid, selection.center_row, selection.center_col
+                )
+                if ps is not None:
+                    pixel_size = dataclasses.asdict(ps)
+            roi_footprint = estimate_roi_footprint_km(lon_grid, lat_grid, mask2d)
 
             atmospheric = {}
             if config.include_atmospheric:
@@ -211,6 +225,9 @@ class Anequim:
                 qc_summary=qc_result.summary(),
                 platform_name=r.get_platform_name(),
                 processing_version=r.get_processing_version(),
+                pixel_size_km=pixel_size,
+                roi_footprint_km=roi_footprint,
+                nominal_pixel_size_m=reader.nominal_pixel_size_m,
                 extra={
                     "center_row": selection.center_row,
                     "center_col": selection.center_col,

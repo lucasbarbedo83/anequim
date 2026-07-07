@@ -1,5 +1,9 @@
 # Anequim
 
+<p align="center">
+  <img src="docs/images/anequim_logo.png" alt="Anequim — Catching the ocean spectrum" width="360">
+</p>
+
 **Catching the ocean spectrum.**
 
 Anequim is a sensor-independent Python framework for retrieving ocean-color
@@ -52,7 +56,8 @@ print(cube.spectrum_dataframe())
 |---|---|
 | `core` (config, QC, flags, `SpectralCube`, `Provenance`, `Anequim`) | **Working** |
 | `readers` — PACE OCI (`sensor="OCI"`) | **Working** |
-| `readers` — OLCI / VIIRS / MODIS | Registered, raise `NotImplementedSensorError` (see module docstrings for the planned design) |
+| `readers` — Sentinel-3 OLCI (`sensor="OLCI"`) | **Working** (directory-based SAFE granules; see caveats below) |
+| `readers` — VIIRS / MODIS | Registered, raise `NotImplementedSensorError` (see module docstrings for the planned design — nearly identical file layout to PACE OCI, so these are the next-easiest to add) |
 | `roi` — pixel, rectangular, circular, bounding box | **Working** |
 | `roi` — polygon | Stub (`NotImplementedError`) |
 | `geometry` (haversine distance, nearest-pixel search) | **Working** |
@@ -130,13 +135,49 @@ anequim --files data/*.nc --sensor OCI --lon -70.5 --lat 41.3 \
     --output matchup.csv
 ```
 
+## Pixel size and ROI footprint
+
+Every `SpectralCube` reports the *actual* ground pixel size, measured
+directly from the granule's own geolocation grid at the matched
+location — not a hardcoded nominal constant, since real pixel size
+varies substantially off-nadir:
+
+```python
+cube.pixel_size_km        # {'along_track_km':.., 'cross_track_km':.., 'mean_km':.., 'area_km2':..}
+cube.roi_footprint_km      # {'n_rows':.., 'n_cols':.., 'along_track_km':.., 'cross_track_km':.., 'diagonal_km':..}
+cube.provenance.nominal_pixel_size_m   # sensor's documented nadir spec, for reference (300 for OLCI, ~1000 for PACE OCI)
+```
+
+## Sentinel-3 OLCI — known caveats
+
+OLCI L2 WFR granules are a **directory** (ESA SAFE format,
+`S3?_OL_2_WFR____....SEN3`), not a single file — pass the directory path
+itself to `files=`. A couple of things to know:
+
+- **Units**: EUMETSAT's Collection 4 (effective Feb 2026) switched the
+  per-band product from water-leaving reflectance ρw to Rrs directly.
+  The reader checks each band's own `units` attribute and converts
+  automatically either way — no action needed.
+- **Atmospheric geometry**: solar/sensor zenith and relative azimuth
+  live on a coarser "tie-point" grid in OLCI files and aren't
+  interpolated to the full-resolution grid yet, so
+  `cube.atmospheric` may be sparse (AOT/Ångström are included when
+  present; geometry is not, for now).
+- **Default QC flags**: OLCI's WQSF flags have a different vocabulary
+  than PACE/MODIS/VIIRS's `l2_flags`; a WQSF-appropriate default
+  exclusion set is used automatically (see
+  `anequim.readers.olci.DEFAULT_OLCI_EXCLUDED_FLAGS`) — verify it
+  against your own file's `flag_meanings` for rigorous work.
+
 ## Testing without real satellite data
 
-`examples/make_synthetic_pace_file.py` generates a small, structurally
-realistic synthetic PACE OCI L2 granule (correct group/variable layout,
-a plausible phytoplankton-like Rrs spectral shape, and a scattering of
-flagged pixels) so the whole pipeline can be exercised offline. The test
-suite (`tests/`) uses it as a pytest fixture (`synthetic_pace_file`).
+`examples/make_synthetic_pace_file.py` and
+`examples/make_synthetic_olci_directory.py` generate small, structurally
+realistic synthetic granules (correct group/variable or directory
+layout, a plausible phytoplankton-like Rrs spectral shape, and a
+scattering of flagged pixels) so the whole pipeline can be exercised
+offline for either sensor. The test suite (`tests/`) uses them as
+pytest fixtures (`synthetic_pace_file`, `synthetic_olci_directory`).
 
 ```bash
 pytest

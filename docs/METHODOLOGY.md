@@ -92,6 +92,20 @@ pixels, with per-band standard deviation, per-band valid pixel count,
 and per-band CV all retained in `SpectralCube.qc` for downstream
 analysis.
 
+## Pixel size
+
+Rather than rely on a sensor's documented nadir pixel size (which
+understates real footprint away from nadir, sometimes considerably for
+wide-swath sensors), anequim measures the actual ground pixel size
+directly from each granule's own geolocation grid at the matched
+location: the great-circle distance to the immediate row/column
+neighbor pixels (`anequim.geometry.pixel_size.estimate_pixel_size_km`).
+The sensor's nominal nadir spec (e.g. 300 m for OLCI, ~1 km for PACE
+OCI) is retained separately as reference metadata
+(`Provenance.nominal_pixel_size_m`) for comparison. The overall ROI
+footprint (`Provenance.roi_footprint_km`) is measured the same way,
+using the bounding box of the selected pixels.
+
 ## Wavelength handling
 
 By default, Anequim returns every native band a sensor provides for a

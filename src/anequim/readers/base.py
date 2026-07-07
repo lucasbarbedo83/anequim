@@ -31,6 +31,14 @@ class SensorReader(abc.ABC):
     #: Canonical short sensor name, e.g. "PACE-OCI". Set by subclasses.
     sensor_name: str = "UNKNOWN"
 
+    #: Nominal (at-nadir) ground pixel size in meters, for
+    #: documentation/provenance purposes. Actual pixel size varies across
+    #: a swath (larger off-nadir) — see
+    #: :mod:`anequim.geometry.pixel_size` for the geometry-derived,
+    #: per-match-up value computed directly from each granule's own
+    #: lon/lat grid, which is what should be trusted over this constant.
+    nominal_pixel_size_m: Optional[float] = None
+
     def __init__(self, path: str):
         self.path = path
 
@@ -97,6 +105,19 @@ class SensorReader(abc.ABC):
         this granule's own flag metadata (preferred over the generic
         default table in :mod:`anequim.core.flags` when available).
         Return ``None`` to fall back to the default OBPG table.
+        """
+        return None
+
+    def get_default_excluded_flags(self) -> Optional["tuple[str, ...]"]:
+        """Optional: this sensor's own recommended default set of flag
+        names to exclude, used when the caller does not supply
+        ``QCConfig.flag_names`` explicitly. Return ``None`` to fall back
+        to the generic OBPG default set
+        (:data:`anequim.core.flags.DEFAULT_EXCLUDED_FLAGS`), which is
+        appropriate for OBPG-family sensors (PACE OCI, and the planned
+        MODIS/VIIRS readers) but *not* for sensors with an entirely
+        different flag vocabulary (e.g. Sentinel-3 OLCI's WQSF flags) —
+        those readers should override this.
         """
         return None
 
