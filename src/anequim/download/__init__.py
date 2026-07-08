@@ -1,15 +1,18 @@
 """Granule discovery/download.
 
 NASA Earthdata / OB.DAAC (PACE OCI) is implemented via ``earthaccess``
-— see :mod:`anequim.download.earthdata`. Copernicus Marine (Sentinel-3
-OLCI) remains a stub, blocked on an OLCI reader existing — see
+— see :mod:`anequim.download.earthdata`. Copernicus Data Space Ecosystem
+(Sentinel-3 OLCI) is implemented via CDSE's OData API — see
 :mod:`anequim.download.copernicus`.
 
 :func:`fetch_granules` is the single entry point that dispatches to the
 right backend by sensor name, keeping the network/credentials concern
 fully separate from retrieval and QC logic. Its return value (a list of
 local file paths) is exactly what :class:`anequim.core.anequim.Anequim`
-expects for its ``files=`` argument.
+expects for its ``files=`` argument — and exactly what
+:meth:`anequim.core.anequim.Anequim.retrieve_online` uses internally, so
+the same one-call ``Anequim.retrieve_online(longitude, latitude, time,
+sensor=...)`` interface works for both PACE OCI and Sentinel-3 OLCI.
 """
 
 from __future__ import annotations
@@ -37,16 +40,20 @@ def fetch_granules(
     """Search and download granules for ``sensor`` covering (longitude,
     latitude) within ``+/- time_window_hours`` of ``target_time``.
 
-    Dispatches to :func:`anequim.download.earthdata.fetch_pace_oci_granules`
-    for ``sensor="OCI"`` (the only backend implemented today).
-    Additional ``**kwargs`` are passed through to that backend (e.g.
-    ``near_real_time=True``, ``padding_deg=``, ``count=``).
+    Dispatches to
+    :func:`anequim.download.earthdata.fetch_pace_oci_granules` for
+    ``sensor="OCI"`` (NASA Earthdata) or
+    :func:`anequim.download.copernicus.fetch_olci_granules` for
+    ``sensor="OLCI"`` (Copernicus Data Space Ecosystem). Additional
+    ``**kwargs`` are passed through to the matched backend (e.g.
+    ``near_real_time=True`` for OCI; ``product_type=`` for OLCI;
+    ``padding_deg=``/``count=`` for either).
 
     Raises
     ------
     DownloadNotAvailableError
-        For any sensor other than PACE OCI, since no other download
-        backend is implemented yet.
+        For any sensor other than PACE OCI or Sentinel-3 OLCI, since no
+        other download backend is implemented yet.
     """
     key = sensor.strip().lower()
     if key in _PACE_OCI_ALIASES:
@@ -58,9 +65,9 @@ def fetch_granules(
             longitude, latitude, target_time, time_window_hours, cache_dir, **kwargs
         )
     raise DownloadNotAvailableError(
-        f"Download is not yet implemented for sensor '{sensor}'. Only PACE OCI "
-        "('OCI') is supported today; download other sensors' granules yourself "
-        "for now and pass local file paths to Anequim.get_rrs()."
+        f"Download is not yet implemented for sensor '{sensor}'. PACE OCI ('OCI') and "
+        "Sentinel-3 OLCI ('OLCI') are supported today; download other sensors' granules "
+        "yourself for now and pass local file paths to Anequim.get_rrs()."
     )
 
 
