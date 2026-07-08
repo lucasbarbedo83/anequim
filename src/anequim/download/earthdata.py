@@ -1,9 +1,9 @@
 """NASA Earthdata / OB.DAAC granule search and download, via ``earthaccess``.
 
 This is the first *implemented* half of :mod:`anequim.download` — it
-covers PACE OCI (the only sensor anequim reads end-to-end today).
-Copernicus Marine / Sentinel-3 OLCI download remains a stub (see
-:mod:`anequim.download.copernicus`) until an OLCI reader exists.
+covers PACE OCI (the sensor anequim has read end-to-end the longest).
+Sentinel-3 OLCI download is also implemented, via the Copernicus Data
+Space Ecosystem instead — see :mod:`anequim.download.copernicus`.
 
 Requires the optional ``earthaccess`` dependency
 (``pip install anequim[download]``) and a NASA Earthdata Login account

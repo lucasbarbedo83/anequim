@@ -63,16 +63,16 @@ print(cube.spectrum_dataframe())
 | `geometry` (haversine distance, nearest-pixel search) | **Working** |
 | `statistics` (mean, median, std, percentile, covariance, correlation) | **Working** |
 | `download` — PACE OCI via NASA Earthdata (`earthaccess`) | **Working** (`pip install anequim[download]`) |
-| `download` — Sentinel-3 OLCI via Copernicus Marine | Stub — blocked on an OLCI reader existing |
+| `download` — Sentinel-3 OLCI via Copernicus Data Space Ecosystem | **Working** (`pip install anequim[download]`) |
 | `harmonization` (wavelength interpolation, SRF convolution) | Stub, opt-in by design |
 | `algorithms` (QAA, GIOP, GSM) | Stub — future bio-optical inversion |
 | `plot` | `plot_spectrum` working; comparison/map plots stubbed |
 
-Anequim can now find and download PACE OCI granules for you
-(`Anequim.retrieve_online(...)`), or you can still point it at files
-you already have (`Anequim.retrieve(files=..., ...)`). For any other
-sensor, use `earthaccess`/the Copernicus Marine Toolbox yourself and
-hand the resulting paths to `Anequim(files=...)`.
+Anequim can now find and download PACE OCI and Sentinel-3 OLCI granules
+for you (`Anequim.retrieve_online(...)`), or you can still point it at
+files you already have (`Anequim.retrieve(files=..., ...)`). For any
+other sensor, download granules yourself and hand the resulting paths
+to `Anequim(files=...)`.
 
 ## Match-up methodology
 
@@ -105,11 +105,16 @@ pip install -e ".[all]"   # editable install with plotting + xarray + test extra
 
 Core runtime dependencies: `numpy`, `netCDF4`, `pandas`.
 
-## Quick start (download + retrieve in one call)
+## Quick start (download + retrieve in one call — any supported sensor)
 
-Requires `pip install anequim[download]` and a free NASA Earthdata
-Login account (https://urs.earthdata.nasa.gov/):
+The interaction is the same regardless of sensor: give a point, a time,
+and a sensor; anequim finds the granule, downloads it, and returns a
+`SpectralCube`. Only the one-time credential setup differs, since PACE
+OCI and Sentinel-3 OLCI are distributed by different agencies.
 
+Requires `pip install anequim[download]`.
+
+**PACE OCI** — via NASA Earthdata (`earthaccess`):
 ```python
 from anequim import Anequim
 from anequim.download import login
@@ -119,13 +124,38 @@ login(strategy="netrc")  # or strategy="interactive", persist=True the first tim
 cube = Anequim.retrieve_online(
     longitude=-70.5, latitude=41.3, time="2024-06-15T15:00:00Z", sensor="OCI",
 )
-print(cube.spectrum_dataframe())
 ```
+One-time setup: create a free NASA Earthdata Login account
+(https://urs.earthdata.nasa.gov/), then either run
+`anequim.download.login(strategy="interactive", persist=True)` once (it
+saves credentials to `~/.netrc`), or write `~/.netrc` yourself.
 
-This searches NASA CMR for PACE OCI L2 AOP granules covering your point
-and time window, downloads any matches to `~/.anequim/cache` (or
-`cache_dir=` of your choosing), and runs the same retrieval pipeline as
-`Anequim.retrieve(files=..., ...)`.
+**Sentinel-3 OLCI** — via the Copernicus Data Space Ecosystem (CDSE):
+```python
+import os
+os.environ["CDSE_USERNAME"] = "you@example.com"
+os.environ["CDSE_PASSWORD"] = "..."
+
+from anequim import Anequim
+
+cube = Anequim.retrieve_online(
+    longitude=-70.5, latitude=41.3, time="2024-06-15T15:00:00Z", sensor="OLCI",
+)
+```
+One-time setup: create a free CDSE account
+(https://dataspace.copernicus.eu/), then set `CDSE_USERNAME` /
+`CDSE_PASSWORD` as environment variables (anequim exchanges them for a
+short-lived access token automatically — no separate API key to
+generate or manage).
+
+Both calls search the respective agency's catalog for granules covering
+your point and time window, download to `~/.anequim/cache/...` (or
+`cache_dir=` of your choosing), and run the same retrieval pipeline as
+`Anequim.retrieve(files=..., ...)`. Note: PACE OCI and Sentinel-3 OLCI
+are distributed by different space agencies (NASA vs. ESA/EU
+Copernicus) via genuinely separate catalogs and credential systems —
+that's a fact about the data providers, not a design choice of
+anequim's, but it's why two accounts are needed rather than one.
 
 ## Quick start (CLI, local files)
 
