@@ -21,11 +21,18 @@ from typing import List, Optional
 
 from ..core.config import TimeLike
 from ..core.exceptions import DownloadNotAvailableError
-from .earthdata import login, fetch_pace_oci_granules
-from .copernicus import fetch_olci_granules
+from .earthdata import login as earthdata_login, fetch_pace_oci_granules
+from .copernicus import login as cdse_login, fetch_olci_granules
 
 _PACE_OCI_ALIASES = {"oci", "pace", "pace-oci", "pace_oci"}
 _OLCI_ALIASES = {"olci", "sentinel3-olci", "sentinel-3"}
+
+#: Backward-compatible default: `anequim.download.login` refers to the
+#: NASA Earthdata login (the first backend implemented). For CDSE,
+#: import `anequim.download.copernicus.login` (or `cdse_login`) directly
+#: — the two services have unrelated credentials and can't share one
+#: `login()` call.
+login = earthdata_login
 
 
 def fetch_granules(
@@ -46,8 +53,8 @@ def fetch_granules(
     :func:`anequim.download.copernicus.fetch_olci_granules` for
     ``sensor="OLCI"`` (Copernicus Data Space Ecosystem). Additional
     ``**kwargs`` are passed through to the matched backend (e.g.
-    ``near_real_time=True`` for OCI; ``product_type=`` for OLCI;
-    ``padding_deg=``/``count=`` for either).
+    ``near_real_time=True`` for OCI; ``product_type=``/``totp=`` for
+    OLCI; ``padding_deg=``/``count=`` for either).
 
     Raises
     ------
@@ -71,4 +78,11 @@ def fetch_granules(
     )
 
 
-__all__ = ["login", "fetch_pace_oci_granules", "fetch_olci_granules", "fetch_granules"]
+__all__ = [
+    "login",
+    "earthdata_login",
+    "cdse_login",
+    "fetch_pace_oci_granules",
+    "fetch_olci_granules",
+    "fetch_granules",
+]

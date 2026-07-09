@@ -143,10 +143,23 @@ cube = Anequim.retrieve_online(
 )
 ```
 One-time setup: create a free CDSE account
-(https://dataspace.copernicus.eu/), then set `CDSE_USERNAME` /
-`CDSE_PASSWORD` as environment variables (anequim exchanges them for a
-short-lived access token automatically — no separate API key to
-generate or manage).
+(https://dataspace.copernicus.eu/) with a direct email+password login
+(not Google/institutional SSO — that login type isn't supported by the
+API used here), then set `CDSE_USERNAME` / `CDSE_PASSWORD` as
+environment variables.
+
+**If two-factor authentication is enabled on your CDSE account** (check
+your account settings), plain username/password isn't enough — call
+`login()` once per session with your current 2FA code:
+```python
+from anequim.download.copernicus import login
+login(totp="123456")  # current 6-digit code from your authenticator app
+```
+This caches a refresh token to `~/.anequim/cdse_refresh_token`, so every
+`retrieve_online(sensor="OLCI", ...)` call afterward — including from
+unattended scripts — works silently without needing your password or a
+new 2FA code again, until that refresh token eventually expires (at
+which point call `login()` again).
 
 Both calls search the respective agency's catalog for granules covering
 your point and time window, download to `~/.anequim/cache/...` (or
