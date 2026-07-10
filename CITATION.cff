@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use Anequim in a publication, please cite it as below."
+title: "Anequim: A sensor-independent Python framework for ocean-color remote sensing reflectance and atmospheric product retrieval"
+version: 0.1.0
+date-released: "2026-07-09"
+license: MIT
+repository-code: "https://github.com/lucasbarbedo83/anequim"
+type: software
+keywords:
+  - ocean color
+  - remote sensing reflectance
+  - Rrs
+  - PACE
+  - OCI
+  - Sentinel-3
+  - OLCI
+  - MODIS
+  - VIIRS
+  - bio-optics
+  - remote sensing
+authors:
+  - family-names: "Barbedo"
+    given-names: "Lucas"
+    affiliation: "Météo-France"

@@ -151,3 +151,117 @@ def fetch_pace_oci_granules(
     os.makedirs(directory, exist_ok=True)
     downloaded = earthaccess.download(results, directory)
     return [str(p) for p in downloaded]
+
+
+#: NASA CMR short names for MODIS-Aqua / MODIS-Terra L2 OC, and their
+#: near-real-time variants.
+MODIS_AQUA_OC_SHORT_NAME = "MODISA_L2_OC"
+MODIS_AQUA_OC_NRT_SHORT_NAME = "MODISA_L2_OC_NRT"
+MODIST_TERRA_OC_SHORT_NAME = "MODIST_L2_OC"
+MODIST_TERRA_OC_NRT_SHORT_NAME = "MODIST_L2_OC_NRT"
+
+#: NASA CMR short names for VIIRS-SNPP / VIIRS-NOAA20 L2 OC.
+VIIRS_SNPP_OC_SHORT_NAME = "VIIRSN_L2_OC"
+VIIRS_NOAA20_OC_SHORT_NAME = "VIIRSJ1_L2_OC"
+
+
+def _search_and_download(
+    short_name: str,
+    longitude: float,
+    latitude: float,
+    target_time: TimeLike,
+    time_window_hours: float,
+    cache_dir: Optional[str],
+    padding_deg: float,
+    count: int,
+) -> List[str]:
+    """Shared CMR search + download logic used by every OB.DAAC
+    granule-fetching function in this module (PACE OCI, MODIS, VIIRS) —
+    they differ only in which ``short_name`` collection they search."""
+    earthaccess = _require_earthaccess()
+
+    target = parse_time(target_time)
+    half = _dt.timedelta(hours=time_window_hours)
+    temporal = (
+        (target - half).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        (target + half).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    )
+    bounding_box = (
+        longitude - padding_deg,
+        latitude - padding_deg,
+        longitude + padding_deg,
+        latitude + padding_deg,
+    )
+    results = earthaccess.search_data(
+        short_name=short_name, temporal=temporal, bounding_box=bounding_box, count=count
+    )
+    if not results:
+        return []
+    directory = cache_dir or DEFAULT_CACHE_DIR
+    os.makedirs(directory, exist_ok=True)
+    downloaded = earthaccess.download(results, directory)
+    return [str(p) for p in downloaded]
+
+
+def fetch_modis_granules(
+    longitude: float,
+    latitude: float,
+    target_time: TimeLike,
+    time_window_hours: float = 3.0,
+    cache_dir: Optional[str] = None,
+    platform: str = "Aqua",
+    near_real_time: bool = False,
+    padding_deg: float = 0.5,
+    count: int = 10,
+) -> List[str]:
+    """Search NASA CMR for MODIS L2 OC granules and download any matches.
+
+    Parameters mirror :func:`fetch_pace_oci_granules`; ``platform`` is
+    ``"Aqua"`` (default) or ``"Terra"``.
+
+    Returns local file paths, ready to hand to
+    ``Anequim(files=paths, sensor="MODIS")``.
+    """
+    platform_key = platform.strip().lower()
+    if platform_key == "aqua":
+        short_name = MODIS_AQUA_OC_NRT_SHORT_NAME if near_real_time else MODIS_AQUA_OC_SHORT_NAME
+    elif platform_key == "terra":
+        short_name = MODIST_TERRA_OC_NRT_SHORT_NAME if near_real_time else MODIST_TERRA_OC_SHORT_NAME
+    else:
+        raise ValueError(f"platform must be 'Aqua' or 'Terra', got {platform!r}")
+    return _search_and_download(
+        short_name, longitude, latitude, target_time, time_window_hours, cache_dir, padding_deg, count
+    )
+
+
+def fetch_viirs_granules(
+    longitude: float,
+    latitude: float,
+    target_time: TimeLike,
+    time_window_hours: float = 3.0,
+    cache_dir: Optional[str] = None,
+    platform: str = "SNPP",
+    padding_deg: float = 0.5,
+    count: int = 10,
+) -> List[str]:
+    """Search NASA CMR for VIIRS L2 OC granules and download any matches.
+
+    Parameters mirror :func:`fetch_pace_oci_granules`; ``platform`` is
+    ``"SNPP"`` (default) or ``"NOAA-20"``. (A NOAA-21/JPSS-2 CMR
+    short name was not confirmed at implementation time — pass one
+    explicitly via a future ``short_name=`` override if needed, or open
+    an issue.)
+
+    Returns local file paths, ready to hand to
+    ``Anequim(files=paths, sensor="VIIRS")``.
+    """
+    platform_key = platform.strip().upper()
+    if platform_key == "SNPP":
+        short_name = VIIRS_SNPP_OC_SHORT_NAME
+    elif platform_key in ("NOAA-20", "NOAA20", "JPSS-1", "JPSS1"):
+        short_name = VIIRS_NOAA20_OC_SHORT_NAME
+    else:
+        raise ValueError(f"platform must be 'SNPP' or 'NOAA-20', got {platform!r}")
+    return _search_and_download(
+        short_name, longitude, latitude, target_time, time_window_hours, cache_dir, padding_deg, count
+    )
