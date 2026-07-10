@@ -31,9 +31,9 @@ dependencies = [
 [project.optional-dependencies]
 xarray = ["xarray>=2023.1"]
 plot = ["matplotlib>=3.6"]
-download = ["earthaccess>=0.9", "requests>=2.28"]
+download = ["earthaccess>=0.9", "requests>=2.28", "eumdac>=3.0"]
 test = ["pytest>=7.0"]
-all = ["xarray>=2023.1", "matplotlib>=3.6", "earthaccess>=0.9", "requests>=2.28", "pytest>=7.0"]
+all = ["xarray>=2023.1", "matplotlib>=3.6", "earthaccess>=0.9", "requests>=2.28", "eumdac>=3.0", "pytest>=7.0"]
 
 [project.scripts]
 anequim = "anequim.cli:main"

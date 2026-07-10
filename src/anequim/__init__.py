@@ -10,6 +10,12 @@ Philosophy: retrieve the spectrum first, at native sensor resolution,
 with full provenance — everything else (harmonization, bio-optical
 inversion) builds on that and is opt-in.
 
+Author: Lucas Barbedo — Oceanographer, M.Sc. in Remote Sensing, Ph.D.
+in Oceanography, currently at Météo-France.
+
+Citation: if you use Anequim in a publication, please cite it — see
+CITATION.cff in the repository root, or ``anequim.__citation__`` below.
+
 Quick start
 -----------
 >>> from anequim import Anequim
@@ -25,6 +31,12 @@ Quick start
 # (e.g. core.provenance) import it back from this package during their
 # own initialization.
 __version__ = "0.1.0"
+__author__ = "Lucas Barbedo"
+__citation__ = (
+    "Barbedo, L. (2026). Anequim: A sensor-independent Python framework for "
+    "ocean-color remote sensing reflectance and atmospheric product retrieval "
+    "(Version 0.1.0) [Computer software]. https://github.com/lucasbarbedo83/anequim"
+)
 
 from .core.config import QCConfig, RetrievalConfig
 from .core.exceptions import (
@@ -49,6 +61,8 @@ from .roi import ROI, ROISelection, PixelROI, RectangularROI, CircularROI, Bound
 
 __all__ = [
     "__version__",
+    "__author__",
+    "__citation__",
     "Anequim",
     "QCConfig",
     "RetrievalConfig",

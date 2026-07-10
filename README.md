@@ -13,6 +13,16 @@ resampling a sensor's native spectral bands.
 
 > Retrieve the spectrum first. Everything else builds on that.
 
+**Author:** Lucas Barbedo — Oceanographer, M.Sc. in Remote Sensing,
+Ph.D. in Oceanography, currently at Météo-France.
+
+**Citation:** If you use Anequim in a publication, please cite it — see
+[`CITATION.cff`](CITATION.cff), or:
+> Barbedo, L. (2026). *Anequim: A sensor-independent Python framework
+> for ocean-color remote sensing reflectance and atmospheric product
+> retrieval* (Version 0.1.0) [Computer software].
+> https://github.com/lucasbarbedo83/anequim
+
 ```python
 from anequim import Anequim
 
@@ -56,23 +66,25 @@ print(cube.spectrum_dataframe())
 |---|---|
 | `core` (config, QC, flags, `SpectralCube`, `Provenance`, `Anequim`) | **Working** |
 | `readers` — PACE OCI (`sensor="OCI"`) | **Working** |
+| `readers` — MODIS-Aqua/Terra (`sensor="MODIS"`) | **Working** |
+| `readers` — VIIRS SNPP/NOAA-20 (`sensor="VIIRS"`) | **Working** |
 | `readers` — Sentinel-3 OLCI (`sensor="OLCI"`) | **Working** (directory-based SAFE granules; see caveats below) |
-| `readers` — VIIRS / MODIS | Registered, raise `NotImplementedSensorError` (see module docstrings for the planned design — nearly identical file layout to PACE OCI, so these are the next-easiest to add) |
 | `roi` — pixel, rectangular, circular, bounding box | **Working** |
 | `roi` — polygon | Stub (`NotImplementedError`) |
-| `geometry` (haversine distance, nearest-pixel search) | **Working** |
+| `geometry` (haversine distance, nearest-pixel search, pixel size/footprint) | **Working** |
 | `statistics` (mean, median, std, percentile, covariance, correlation) | **Working** |
-| `download` — PACE OCI via NASA Earthdata (`earthaccess`) | **Working** (`pip install anequim[download]`) |
-| `download` — Sentinel-3 OLCI via Copernicus Data Space Ecosystem | **Working** (`pip install anequim[download]`) |
+| `download` — PACE OCI / MODIS / VIIRS via NASA Earthdata (`earthaccess`) | **Working** (`pip install anequim[download]`) |
+| `download` — Sentinel-3 OLCI via EUMETSAT Data Store (`eumdac`, default) or CDSE (alternative) | **Working** (`pip install anequim[download]`) |
 | `harmonization` (wavelength interpolation, SRF convolution) | Stub, opt-in by design |
 | `algorithms` (QAA, GIOP, GSM) | Stub — future bio-optical inversion |
 | `plot` | `plot_spectrum` working; comparison/map plots stubbed |
 
-Anequim can now find and download PACE OCI and Sentinel-3 OLCI granules
-for you (`Anequim.retrieve_online(...)`), or you can still point it at
-files you already have (`Anequim.retrieve(files=..., ...)`). For any
-other sensor, download granules yourself and hand the resulting paths
-to `Anequim(files=...)`.
+All four NASA/ESA ocean color missions anequim targets (PACE OCI,
+MODIS-Aqua, MODIS-Terra, VIIRS-SNPP/NOAA-20, Sentinel-3 OLCI) are now
+readable **and** downloadable through the same one-call interface:
+`Anequim.retrieve_online(longitude, latitude, time, sensor=...)`. Every
+sensor returns the identical `SpectralCube` shape — same fields, same
+methods — regardless of which agency or file format it came from.
 
 ## Match-up methodology
 
@@ -130,7 +142,31 @@ One-time setup: create a free NASA Earthdata Login account
 `anequim.download.login(strategy="interactive", persist=True)` once (it
 saves credentials to `~/.netrc`), or write `~/.netrc` yourself.
 
-**Sentinel-3 OLCI** — via the Copernicus Data Space Ecosystem (CDSE):
+**Sentinel-3 OLCI** — via EUMETSAT's Data Store (default backend, uses
+the official `eumdac` client):
+```python
+import os
+os.environ["EUMETSAT_CONSUMER_KEY"] = "..."
+os.environ["EUMETSAT_CONSUMER_SECRET"] = "..."
+
+from anequim import Anequim
+
+cube = Anequim.retrieve_online(
+    longitude=-70.5, latitude=41.3, time="2024-06-15T15:00:00Z", sensor="OLCI",
+)
+```
+One-time setup: create a free EUMETSAT User Portal account
+(https://user.eumetsat.int/register), then — **important, easy to
+miss** — log in, open your profile, go to "My data licenses", and
+enable "Meteosat > 1hr latency & Metop, Copernicus data & Third party
+data" (Sentinel-3 products aren't accessible without this, even with
+valid credentials). Then generate a consumer key/secret at
+https://api.eumetsat.int/api-key and set them as environment variables.
+This credential type is a static key pair — no 2FA interaction, unlike
+CDSE below.
+
+**Alternative OLCI backend** — Copernicus Data Space Ecosystem (CDSE),
+same underlying data, different agency/account:
 ```python
 import os
 os.environ["CDSE_USERNAME"] = "you@example.com"
@@ -140,6 +176,7 @@ from anequim import Anequim
 
 cube = Anequim.retrieve_online(
     longitude=-70.5, latitude=41.3, time="2024-06-15T15:00:00Z", sensor="OLCI",
+    download_kwargs={"backend": "cdse"},
 )
 ```
 One-time setup: create a free CDSE account
@@ -156,19 +193,32 @@ from anequim.download.copernicus import login
 login(totp="123456")  # current 6-digit code from your authenticator app
 ```
 This caches a refresh token to `~/.anequim/cdse_refresh_token`, so every
-`retrieve_online(sensor="OLCI", ...)` call afterward — including from
-unattended scripts — works silently without needing your password or a
-new 2FA code again, until that refresh token eventually expires (at
-which point call `login()` again).
+`retrieve_online(sensor="OLCI", download_kwargs={"backend": "cdse"})`
+call afterward — including from unattended scripts — works silently
+without needing your password or a new 2FA code again, until that
+refresh token eventually expires (at which point call `login()` again).
 
-Both calls search the respective agency's catalog for granules covering
+**MODIS / VIIRS** — via NASA Earthdata, same credentials as PACE OCI
+above:
+```python
+cube = Anequim.retrieve_online(
+    longitude=-70.5, latitude=41.3, time="2024-06-15T15:00:00Z", sensor="MODIS",
+    download_kwargs={"platform": "Aqua"},   # or "Terra"
+)
+cube = Anequim.retrieve_online(
+    longitude=-70.5, latitude=41.3, time="2024-06-15T15:00:00Z", sensor="VIIRS",
+    download_kwargs={"platform": "SNPP"},   # or "NOAA-20"
+)
+```
+
+All calls search the respective agency's catalog for granules covering
 your point and time window, download to `~/.anequim/cache/...` (or
 `cache_dir=` of your choosing), and run the same retrieval pipeline as
-`Anequim.retrieve(files=..., ...)`. Note: PACE OCI and Sentinel-3 OLCI
-are distributed by different space agencies (NASA vs. ESA/EU
-Copernicus) via genuinely separate catalogs and credential systems —
-that's a fact about the data providers, not a design choice of
-anequim's, but it's why two accounts are needed rather than one.
+`Anequim.retrieve(files=..., ...)`. Note: PACE OCI/MODIS/VIIRS and
+Sentinel-3 OLCI are distributed by different space agencies (NASA vs.
+ESA/EU/EUMETSAT — and OLCI even has two independent portals) via
+genuinely separate catalogs and credential systems — that's a fact
+about the data providers, not a design choice of anequim's.
 
 ## Quick start (CLI, local files)
 

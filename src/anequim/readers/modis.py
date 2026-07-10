@@ -1,24 +1,32 @@
-"""MODIS-Aqua / MODIS-Terra ocean color reader — planned, not yet
-implemented.
+"""Reader for MODIS-Aqua / MODIS-Terra Level-2 OC granules.
 
-Design notes: NASA OB.DAAC MODIS Level-2 ``OC`` granules follow the same
-grouped-NetCDF layout referenced in :mod:`anequim.readers.viirs`
-(fixed multispectral bands: 412, 443, 469, 488, 531, 547, 555, 645, 667,
-678 nm Rrs, plus the standard ``l2_flags``). A real ``ModisL2Reader``
-would be implemented as a thin subclass of the same shared "classic OBPG
-multispectral L2" base proposed for VIIRS.
+Thin subclass of :class:`~anequim.readers._obpg_multiband.ObpgMultibandL2Reader`
+— MODIS L2 OC files follow the classic OBPG multiband layout (see that
+module's docstring for the confirmed file-format details), storing Rrs
+as separate ``Rrs_412``, ``Rrs_443``, ... variables rather than a single
+hyperspectral array. Standard MODIS-Aqua/Terra Rrs bands are 412, 443,
+469, 488, 531, 547, 555, 645, 667, and 678 nm, discovered directly from
+each file rather than hardcoded.
 """
 
 from __future__ import annotations
 
-from ._stub import _StubReader
+from ._obpg_multiband import ObpgMultibandL2Reader
 
 
-class ModisL2Reader(_StubReader):
+class ModisL2Reader(ObpgMultibandL2Reader):
     sensor_name = "MODIS"
+    #: MODIS ocean color bands are nominally 1 km at nadir.
+    nominal_pixel_size_m = 1000.0
 
     @classmethod
     def matches(cls, path: str) -> bool:
-        # Real implementation: check global attributes 'instrument' ==
-        # 'MODIS' and 'platform' in {'Aqua', 'Terra'}.
-        return False
+        import netCDF4
+
+        try:
+            with netCDF4.Dataset(path, mode="r") as ds:
+                instrument = str(getattr(ds, "instrument", "")).upper()
+                platform = str(getattr(ds, "platform", "")).upper()
+                return "MODIS" in instrument and platform in ("AQUA", "TERRA")
+        except Exception:
+            return False
