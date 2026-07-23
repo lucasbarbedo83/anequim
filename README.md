@@ -50,7 +50,10 @@ print(cube.spectrum_dataframe())
    spectrum at this location?" in one call.
 4. **Atmospheric products included** — AOT, Ångström exponent, solar/
    sensor zenith, relative azimuth, wind speed, and quality flags ride
-   alongside Rrs through the same interface, when available.
+   alongside Rrs through the same interface, when available. Total
+   column ozone and water vapor/surface pressure can additionally be
+   fetched on demand to compute downwelling irradiance just above the
+   sea surface, Ed(0+) — see [Downwelling irradiance](#downwelling-irradiance-ed0-frouin-algorithm) below.
 5. **Region-of-interest tools** — single pixel, circular, rectangular,
    and lon/lat bounding-box ROIs today; polygon ROI is planned.
 6. **`SpectralCube`** — every sensor returns the same container: Rrs,
@@ -75,6 +78,8 @@ print(cube.spectrum_dataframe())
 | `statistics` (mean, median, std, percentile, covariance, correlation) | **Working** |
 | `download` — PACE OCI / MODIS / VIIRS via NASA Earthdata (`earthaccess`) | **Working** (`pip install anequim[download]`) |
 | `download` — Sentinel-3 OLCI via EUMETSAT Data Store (`eumdac`, default) or CDSE (alternative) | **Working** (`pip install anequim[download]`) |
+| `download.ancillary` — ozone (OMI/Aura) + water vapor/pressure (MERRA-2) via NASA Earthdata | **Working** (`pip install anequim[download]`) |
+| `atmosphere` — Frouin-algorithm hyperspectral downwelling irradiance, Ed(0+) | **Working** |
 | `harmonization` (wavelength interpolation, SRF convolution) | Stub, opt-in by design |
 | `algorithms` (QAA, GIOP, GSM) | Stub — future bio-optical inversion |
 | `plot` | `plot_spectrum` working; comparison/map plots stubbed |
@@ -241,7 +246,66 @@ cube.roi_footprint_km      # {'n_rows':.., 'n_cols':.., 'along_track_km':.., 'cr
 cube.provenance.nominal_pixel_size_m   # sensor's documented nadir spec, for reference (300 for OLCI, ~1000 for PACE OCI)
 ```
 
-## Sentinel-3 OLCI — known caveats
+## Downwelling irradiance (Ed(0+)) — Frouin algorithm
+
+Beyond Rrs, anequim can compute hyperspectral downwelling irradiance
+just above the sea surface, Ed(0+, λ), using the Frouin algorithm
+(Frouin & Chertock, 1992; Frouin, Franz & Werdell, 2003) — the same
+physical framework NASA uses operationally for PAR and surface
+irradiance products. This needs two things beyond what a granule alone
+provides: ozone and water vapor/pressure, fetched from NASA Earthdata
+(OMI/Aura and MERRA-2, respectively).
+
+**One-call version** — fetch everything and get an `Ed(0+)` spectrum:
+
+```python
+from anequim import Anequim
+from anequim.atmosphere import FrouinIrradiance, atmospheric_state_from_cube
+import numpy as np
+
+cube = Anequim.retrieve(
+    files="PACE_OCI.20240615T144200.L2.OC_AOP.nc",
+    longitude=-70.5, latitude=41.3, time="2024-06-15T15:00:00Z",
+    sensor="OCI",
+    include_ancillary_atmosphere=True,  # fetches ozone (OMI/Aura) + water vapor/pressure (MERRA-2)
+)
+
+state = atmospheric_state_from_cube(cube)   # builds AtmosphericState from cube.atmospheric + provenance
+model = FrouinIrradiance()
+wavelengths = np.arange(400.0, 700.0, 1.0)  # nm
+ed = model.downwelling_irradiance(wavelengths, state)   # W m^-2 nm^-1
+par = model.par_from_spectrum(wavelengths, ed)          # mol quanta m^-2 s^-1
+```
+
+`include_ancillary_atmosphere=True` requires the same NASA Earthdata
+credentials as `Anequim.retrieve_online(sensor="OCI", ...)` above (see
+that section for one-time setup) — ozone and water vapor/pressure are
+fetched per match-up and merged into `cube.atmospheric` as `ozone_du`,
+`water_vapor_cm`, `surface_pressure_hpa`. Aerosol optical depth is
+**not** fetched separately: `atmospheric_state_from_cube` derives it
+from the granule's own `aot_865` + `angstrom` (scene-matched, higher
+resolution than any reanalysis aerosol field).
+
+**Already have ozone/water vapor from elsewhere?** Pass them directly
+instead of using `include_ancillary_atmosphere`:
+
+```python
+cube = Anequim.retrieve(files=..., longitude=-70.5, latitude=41.3, time=..., sensor="OCI")
+state = atmospheric_state_from_cube(cube, ozone_du=290.0, water_vapor_cm=2.1)
+```
+
+**Accuracy note**: the built-in reference solar spectrum, ozone
+absorption cross-section, and water-vapor absorption coefficients are
+physically-reasonable placeholders (the solar spectrum integrates to
+the correct ~1360 W/m² total solar irradiance), not NASA's
+vicariously-calibrated operational tables. For quantitative work,
+supply your own via `FrouinIrradiance.set_solar_spectrum()`,
+`.set_ozone_cross_section()`, and `.set_water_vapor_coefficients()`
+(e.g. TSIS-1 HSRS, Bogumil et al. 2003, Bird & Riordan 1986). See the
+module docstring in `anequim/atmosphere/frouin_irradiance.py` for
+details and references.
+
+
 
 OLCI L2 WFR granules are a **directory** (ESA SAFE format,
 `S3?_OL_2_WFR____....SEN3`), not a single file — pass the directory path
