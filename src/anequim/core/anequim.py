@@ -12,6 +12,8 @@ from __future__ import annotations
 import dataclasses
 from typing import List, Optional, Sequence, Union
 
+import numpy as np
+
 from . import flags as flags_module
 from . import qc as qc_module
 from . import time_utils
@@ -69,6 +71,7 @@ class Anequim:
         wavelengths: Optional[Sequence[float]] = None,
         wavelength_tolerance_nm: float = 2.5,
         include_atmospheric: bool = True,
+        include_ancillary_atmosphere: bool = False,
         return_all_candidates: bool = False,
     ) -> Union[SpectralCube, List[SpectralCube]]:
         """Retrieve Rrs (+ ancillary products) closest to a point and time.
@@ -101,6 +104,7 @@ class Anequim:
             wavelengths=wavelengths,
             wavelength_tolerance_nm=wavelength_tolerance_nm,
             include_atmospheric=include_atmospheric,
+            include_ancillary_atmosphere=include_ancillary_atmosphere,
         )
         sensor = sensor or self.sensor
         roi_obj = roi or RectangularROI(longitude, latitude, box_size=box_size)
@@ -214,6 +218,22 @@ class Anequim:
                 for name, arr in r.get_atmospheric_products().items():
                     atmospheric[name] = arr[mask2d]
 
+            ancillary_source = None
+            if config.include_ancillary_atmosphere:
+                from ..download.ancillary import fetch_atmospheric_ancillary
+
+                n_pixels = int(mask2d.sum())
+                point_values = fetch_atmospheric_ancillary(
+                    config.longitude, config.latitude, config.target_time
+                )
+                for name, value in point_values.items():
+                    # MERRA-2/OMI cells are far coarser than the ROI box,
+                    # so one point value is broadcast across every pixel —
+                    # keeps the same shape-(n_pixels,) contract as the
+                    # native per-pixel atmospheric products above.
+                    atmospheric[name] = np.full(n_pixels, value, dtype=float)
+                ancillary_source = "OMI/Aura (ozone) + MERRA-2 (water vapor, pressure)"
+
             provenance = Provenance(
                 sensor=reader.sensor_name,
                 source_files=[path],
@@ -232,6 +252,7 @@ class Anequim:
                     "center_row": selection.center_row,
                     "center_col": selection.center_col,
                     "center_distance_km": selection.center_distance_km,
+                    "ancillary_atmosphere_source": ancillary_source,
                 },
             )
 

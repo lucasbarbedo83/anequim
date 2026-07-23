@@ -139,6 +139,17 @@ class RetrievalConfig:
         Whether to also retrieve ancillary atmospheric products (AOT,
         Angstrom exponent, solar/sensor zenith, relative azimuth, wind
         speed) alongside Rrs, when the reader/granule provides them.
+    include_ancillary_atmosphere:
+        Whether to additionally fetch total column ozone and water
+        vapor/surface pressure (which granules do not provide) from
+        NASA Earthdata (OMI/Aura + MERRA-2) for this point/time, via
+        :func:`anequim.download.ancillary.fetch_atmospheric_ancillary`,
+        and merge them into ``SpectralCube.atmospheric`` as
+        ``ozone_du``, ``water_vapor_cm``, ``surface_pressure_hpa``.
+        Requires the optional ``earthaccess`` dependency and NASA
+        Earthdata Login credentials. Off by default since (unlike
+        ``include_atmospheric``, which just reads fields already open
+        in the granule file) this makes a network call per retrieval.
     """
 
     longitude: float
@@ -151,6 +162,7 @@ class RetrievalConfig:
     wavelengths: Optional[Iterable[float]] = None
     wavelength_tolerance_nm: float = 2.5
     include_atmospheric: bool = True
+    include_ancillary_atmosphere: bool = False
 
     def __post_init__(self) -> None:
         if not (-180.0 <= self.longitude <= 180.0):
